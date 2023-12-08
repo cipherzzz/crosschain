@@ -1,0 +1,17 @@
+{
+  "name": "ondo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "rwa:contract:clean": "cd rwa-bridge && npm run clean",
+    "rwa:contract:build": "cd rwa-bridge && npm run compile",
+    "test:rwa:axelar:token:complex": "cd rwa-bridge && npm run test:rwa:axelar:token:complex",
+    "test:rwa:axelar:token:simple": "cd rwa-bridge && npm run test:rwa:axelar:token:simple",
+    "local:chain:env": "cd local-axelar-env && node scripts/runSetupEnv",
+    "local:chain:build": "cd local-axelar-env && npm run build",
+    "local:chain:start": "cd local-axelar-env && node scripts/runStart"
+  },
+  "author": "",
+  "license": "ISC"
+}

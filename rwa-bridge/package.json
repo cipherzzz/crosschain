@@ -1,0 +1,22 @@
+{
+  "name": "hardhat-project",
+  "scripts": {
+    "compile": "hardhat compile",
+    "clean": "hardhat clean",
+    "test:rwa:axelar:token:complex": "hardhat test ./test/axelar.complex.spec.ts",
+    "test:rwa:axelar:token:simple": "hardhat test ./test/axelar.simple.spec.ts",
+    "start": "node ./axelar-examples/scripts/runStart"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "chai": "^4.3.10",
+    "hardhat": "^2.19.2",
+    "mocha": "^10.2.0"
+  },
+  "dependencies": {
+    "@axelar-network/axelar-gmp-sdk-solidity": "^5.6.3",
+    "@axelar-network/axelarjs-sdk": "^0.13.7",
+    "@openzeppelin/contracts": "^5.0.0",
+    "dotenv": "^16.3.1"
+  }
+}
