@@ -3,21 +3,25 @@ import { ContractFactory, ethers } from "ethers";
 import { FANTOM_NETWORK, POLYGON_NETWORK } from "../src/utils/networks";
 const RWA = require("../artifacts/contracts/axelar/token/simple/RWA.sol/RWA.json");
 const DestinationBridge = require("../artifacts/contracts/axelar/bridge/DestinationBridge.sol/DestinationBridge.json");
+const OriginBridge = require("../artifacts/contracts/axelar/bridge/OriginBridge.sol/OriginBridge.json");
+
 import { getWallet } from "../src/utils/wallet";
 
-describe("Escrow", function () {
+describe("Crosschain", function () {
   const NAME = "Real World Asset";
   const SYMBOL = "RWA";
-  const POLYGON_MINT_LIMIT = 1000000;
-  const FANTOM_MINT_LIMIT = 2000000;
+  const MAX_SINGLE_TRANSFER_AMOUNT = 1000000;
+  const MAX_DAILY_TRANSFER_AMOUNT = 10000000;
   let polygonRWA: any;
   let fantomRWA: any;
   let polygonWallet: any;
   let fantomWallet: any;
   let polygonDestinationBridge: any;
   let fantomDestinationBridge: any;
+  let polygonOriginBridge: any;
+  let fantomOriginBridge: any;
 
-  beforeEach(async function () {
+  before(async function () {
     let factory: any;
 
     //deploy RWA to Polygon
@@ -52,9 +56,57 @@ describe("Escrow", function () {
       fantomWallet.address
     );
 
-    //configure bridges
-    await polygonRWA.setAxelarBridge(polygonDestinationBridge.address);
-    await fantomRWA.setAxelarBridge(fantomDestinationBridge.address);
+    //deploy origin bridge to Polygon
+    factory = new ContractFactory(
+      OriginBridge.abi,
+      OriginBridge.bytecode,
+      polygonWallet
+    );
+    polygonOriginBridge = await factory.deploy(
+      POLYGON_NETWORK.gateway,
+      POLYGON_NETWORK.gasService,
+      polygonWallet.address
+    );
+
+    //deploy origin bridge to Fantom
+    factory = new ContractFactory(
+      OriginBridge.abi,
+      OriginBridge.bytecode,
+      fantomWallet
+    );
+    fantomOriginBridge = await factory.deploy(
+      FANTOM_NETWORK.gateway,
+      FANTOM_NETWORK.gasService,
+      fantomWallet.address
+    );
+
+    //add assets to bridges
+    polygonOriginBridge.addSupportedAsset(
+      polygonRWA.address,
+      MAX_SINGLE_TRANSFER_AMOUNT,
+      MAX_DAILY_TRANSFER_AMOUNT
+    );
+    fantomOriginBridge.addSupportedAsset(
+      fantomRWA.address,
+      MAX_SINGLE_TRANSFER_AMOUNT,
+      MAX_DAILY_TRANSFER_AMOUNT
+    );
+
+    await polygonDestinationBridge.addSupportedAsset(polygonRWA.address);
+    await fantomDestinationBridge.addSupportedAsset(fantomRWA.address);
+
+    // Link bridges to each other
+    await polygonRWA.setDestinationBridge(polygonDestinationBridge.address);
+    await fantomRWA.setDestinationBridge(fantomDestinationBridge.address);
+
+    await polygonDestinationBridge.addOriginBridge(
+      FANTOM_NETWORK.name,
+      fantomOriginBridge.address
+    );
+    await fantomDestinationBridge.addOriginBridge(
+      POLYGON_NETWORK.name,
+      polygonOriginBridge.address
+    );
   });
 
   describe("Deployment", function () {
@@ -66,7 +118,37 @@ describe("Escrow", function () {
       expect(await fantomRWA.owner()).to.equal(fantomWallet.address);
       expect(await fantomRWA.name()).to.equal(NAME);
       expect(await fantomRWA.symbol()).to.equal(SYMBOL);
+
+      expect(await polygonDestinationBridge.owner()).to.equal(
+        polygonWallet.address
+      );
+      expect(await polygonDestinationBridge.gateway()).to.equal(
+        POLYGON_NETWORK.gateway
+      );
+      expect(
+        await polygonDestinationBridge.supportedAssets(polygonRWA.address)
+      ).to.equal(true);
+
+      expect(await fantomDestinationBridge.owner()).to.equal(
+        fantomWallet.address
+      );
+      expect(await fantomDestinationBridge.gateway()).to.equal(
+        FANTOM_NETWORK.gateway
+      );
+      expect(
+        await fantomDestinationBridge.supportedAssets(fantomRWA.address)
+      ).to.equal(true);
     });
   });
-  describe("Bridge", function () {});
+  // describe("Bridge Assets", async function () {
+  //   it("Should bridge assets from Polygon to Fantom", async function () {
+  //     const amount = 100;
+  //     await polygonRWA.approve(polygonOriginBridge.address, amount);
+  //     await polygonOriginBridge.bridgeAsset(
+  //       polygonRWA.address,
+  //       amount,
+  //       FANTOM_NETWORK.name
+  //     );
+  //   });
+  // });
 });

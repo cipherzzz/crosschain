@@ -17,7 +17,7 @@ contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
 
     IAxelarGateway public immutable gw;
 
-    bytes32 public constant VERSION = "0.1";
+    bytes32 public constant CHAIN_VERSION = "0.1";
     uint256 public immutable CHAIN_ID;
 
     mapping(IRWA => bool) public supportedAssets;
@@ -66,7 +66,7 @@ contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
 
     // Todo: removeOriginBridge?
 
-    function addAsset(address _asset) external onlyOwner {
+    function addSupportedAsset(address _asset) external onlyOwner {
         IRWA asset = IRWA(_asset);
         supportedAssets[asset] = true;
     }

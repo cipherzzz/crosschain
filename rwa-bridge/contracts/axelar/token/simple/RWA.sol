@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract RWA is Ownable, ERC20Burnable {
-    address public axelarBridge;
+    address public destinationBridge;
 
     modifier onlyAxelarBridge() {
         require(
-            msg.sender == axelarBridge,
+            msg.sender == destinationBridge,
             "RWA - Only the Axelar Bridge can call this function."
         );
         _;
@@ -32,7 +32,7 @@ contract RWA is Ownable, ERC20Burnable {
         _mint(_receiver, _amount);
     }
 
-    function setAxelarBridge(address _bridge) external onlyOwner {
-        axelarBridge = _bridge;
+    function setDestinationBridge(address _bridge) external onlyOwner {
+        destinationBridge = _bridge;
     }
 }
