@@ -16,8 +16,14 @@ contract RWABridge is Pausable, Ownable, AxelarExecutable {
     // Todo: add comments
 
     IAxelarGasService public immutable gasService;
-    bytes32 public constant CHAIN_VERSION = "0.1";
     uint256 public immutable CHAIN_ID;
+    bytes32 public immutable CHAIN_VERSION;
+
+    mapping(IRWA => uint256) public dailyLimitAmount;
+    mapping(IRWA => uint256) private dailyTotals;
+    mapping(IRWA => uint256) private dailyReset;
+
+    mapping(IRWA => uint256) private maxTransferAmount;
 
     mapping(IRWA => bool) public supportedAssets;
 
@@ -27,6 +33,7 @@ contract RWABridge is Pausable, Ownable, AxelarExecutable {
         address _owner
     ) AxelarExecutable(_gw) Ownable(_owner) {
         CHAIN_ID = block.chainid;
+        CHAIN_VERSION = "0.1.0";
         gasService = IAxelarGasService(_gasReceiver);
     }
 
@@ -38,9 +45,22 @@ contract RWABridge is Pausable, Ownable, AxelarExecutable {
         uint256 _amount
     ) external payable onlyOwner {
         require(supportedAssets[IRWA(_assetToBurn)], "Asset is not supported");
+
         require(msg.value > 0, "Gas payment is required");
+
         require(msg.sender == owner(), "Only the owner can call this function");
+
         require(paused() == false, "Bridge is currently paused");
+
+        require(
+            maxTransferAmount[IRWA(_assetToBurn)] > 0,
+            "No max transfer amount is configured for this asset"
+        );
+
+        require(
+            _amount <= maxTransferAmount[IRWA(_assetToBurn)],
+            "Amount exceeds max transfer amount"
+        );
 
         bytes memory payload = abi.encode(
             _assetToMint,
@@ -59,6 +79,17 @@ contract RWABridge is Pausable, Ownable, AxelarExecutable {
         );
 
         IRWA asset = IRWA(_assetToBurn);
+        if (block.timestamp > dailyReset[asset] + 1 days) {
+            dailyTotals[asset] = 0;
+            dailyReset[asset] = block.timestamp;
+        }
+        require(
+            dailyTotals[asset] + _amount <= dailyLimitAmount[asset],
+            "Requested amount would exceed daily limit for tokn/chain"
+        );
+
+        dailyTotals[asset] += _amount;
+
         asset.burnFrom(msg.sender, _amount);
 
         gateway.callContract(
@@ -89,9 +120,26 @@ contract RWABridge is Pausable, Ownable, AxelarExecutable {
         asset.mintTo(_originSender, _amount);
     }
 
-    function addSupportedAsset(address _asset) external onlyOwner {
+    function addSupportedAsset(
+        address _asset,
+        uint256 maxTransfer,
+        uint256 dailyLimit
+    ) external onlyOwner {
         IRWA asset = IRWA(_asset);
         supportedAssets[asset] = true;
+        maxTransferAmount[asset] = maxTransfer;
+        dailyLimitAmount[asset] = dailyLimit;
+    }
+
+    function removeSupportedAsset(
+        address _asset,
+        uint256 dailyLimit,
+        uint256 maxTransfer
+    ) external onlyOwner {
+        IRWA asset = IRWA(_asset);
+        delete supportedAssets[asset];
+        delete dailyLimitAmount[asset];
+        delete maxTransferAmount[asset];
     }
 
     // Todo: removeAsset?
