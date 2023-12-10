@@ -9,6 +9,7 @@
     "test:rwa:axelar:token:complex": "cd rwa-bridge && npm run test:rwa:axelar:token:complex",
     "test:rwa:axelar:token:simple": "cd rwa-bridge && npm run test:rwa:axelar:token:simple",
     "test:rwa:axelar:token:copy": "cd rwa-bridge && npm run test:rwa:axelar:token:copy",
+    "test:rwa:axelar:bridge": "cd rwa-bridge && npm run test:rwa:axelar:bridge",
     "local:chain:env": "cd local-axelar-env && node scripts/runSetupEnv",
     "local:chain:build": "cd local-axelar-env && npm run build",
     "local:chain:start": "cd local-axelar-env && node scripts/runStart"

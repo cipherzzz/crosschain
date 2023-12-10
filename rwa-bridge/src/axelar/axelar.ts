@@ -154,23 +154,34 @@ export async function bridgeAsset(
   await print();
 }
 
-export const throttle = async (
-  network: any,
-  symbol: string,
-  wallet: any,
-  limit: number
-) => {
-  const gateway = new ethers.Contract(
-    network.gateway,
-    [
-      "function setTokenMintLimits(string[] calldata symbols, uint256[] calldata limits) external",
-      "function tokenMintLimit(string memory symbol) external view returns (uint256)",
-      "function tokenMintAmount(string memory symbol) external view returns (uint256)",
-      "function allTokensFrozen() external view returns (bool)",
-    ],
-    wallet
+export async function sendMessage(source, destination, message) {
+  async function logValue() {
+    console.log(
+      `value at ${destination.name} is "${await destination.contract.value()}"`
+    );
+  }
+
+  console.log("--- Initially ---");
+  await logValue();
+
+  const fee = await calculateBridgeFee(source, destination);
+
+  const tx = await source.contract.setRemoteValue(
+    destination.name,
+    destination.contract.address,
+    message,
+    {
+      value: fee,
+    }
   );
-  const currentLimit = await gateway.tokenMintLimit(symbol);
-  console.log(`Current mint limit for ${symbol} is ${currentLimit}`);
-  await gateway.setTokenMintLimits([symbol], [limit]);
-};
+  await tx.wait();
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  while ((await destination.contract.value()) !== message) {
+    await sleep(1000);
+  }
+
+  console.log("--- After ---");
+  await logValue();
+}
