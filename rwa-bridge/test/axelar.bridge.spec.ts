@@ -13,8 +13,8 @@ import {
 import { bridgeAsset } from "../src/axelar/axelar";
 
 describe("Crosschain", function () {
-  const NAME = "Real World Asset";
-  const SYMBOL = "RWA";
+  const RWA_NAME = "Real World Asset";
+  const RWA_SYMBOL = "RWA";
   const MAX_SINGLE_TRANSFER_AMOUNT = 1000000;
   const MAX_DAILY_TRANSFER_AMOUNT = 10000000;
   let polygonWallet: any;
@@ -75,16 +75,24 @@ describe("Crosschain", function () {
 
     //deploy RWA to Polygon
     factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonWallet);
-    polygonRWA = await factory.deploy(NAME, SYMBOL, polygonWallet.address);
+    polygonRWA = await factory.deploy(
+      RWA_NAME,
+      RWA_SYMBOL,
+      polygonWallet.address
+    );
     await polygonRWA.deployed();
 
     //deploy RWA to Fantom
     factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomWallet);
-    fantomRWA = await factory.deploy(NAME, SYMBOL, fantomWallet.address);
+    fantomRWA = await factory.deploy(
+      RWA_NAME,
+      RWA_SYMBOL,
+      fantomWallet.address
+    );
     await fantomRWA.deployed();
 
-    POLYGON_NETWORK.assets[SYMBOL] = polygonRWA;
-    FANTOM_NETWORK.assets[SYMBOL] = fantomRWA;
+    POLYGON_NETWORK.assets[RWA_SYMBOL] = polygonRWA;
+    FANTOM_NETWORK.assets[RWA_SYMBOL] = fantomRWA;
 
     // deploy destination bridge to Polygon
     factory = new ContractFactory(
@@ -165,7 +173,7 @@ describe("Crosschain", function () {
         await bridgeAsset(
           POLYGON_NETWORK,
           FANTOM_NETWORK,
-          SYMBOL,
+          RWA_SYMBOL,
           AMOUNT,
           fantomWallet.address
         );
@@ -200,7 +208,7 @@ describe("Crosschain", function () {
           bridgeAsset(
             POLYGON_NETWORK,
             FANTOM_NETWORK,
-            SYMBOL,
+            RWA_SYMBOL,
             AMOUNT,
             fantomWallet.address
           )
@@ -216,7 +224,7 @@ describe("Crosschain", function () {
           bridgeAsset(
             POLYGON_NETWORK,
             FANTOM_NETWORK,
-            SYMBOL,
+            RWA_SYMBOL,
             AMOUNT,
             fantomWallet.address
           )
