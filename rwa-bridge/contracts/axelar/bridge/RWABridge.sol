@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 
 import "../token/IRWA.sol";
 
-contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
+contract RWABridge is Pausable, Ownable, AxelarExecutable {
     // Todo: add events
     // Todo: add comments
 
@@ -36,8 +36,11 @@ contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
         address _assetToBurn,
         address _assetToMint,
         uint256 _amount
-    ) external payable {
+    ) external payable onlyOwner {
+        require(supportedAssets[IRWA(_assetToBurn)], "Asset is not supported");
         require(msg.value > 0, "Gas payment is required");
+        require(msg.sender == owner(), "Only the owner can call this function");
+        require(paused() == false, "Bridge is currently paused");
 
         bytes memory payload = abi.encode(
             _assetToMint,

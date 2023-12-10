@@ -6,8 +6,16 @@ const {
   Environment,
 } = require("@axelar-network/axelarjs-sdk");
 
-export const getWallet = (network: any): any => {
-  const privateKey = process.env.PRIVATE_KEY;
+export const getDeployerWallet = (network: any): any => {
+  const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
+  const signer = new Wallet(privateKey!);
+  const provider = getDefaultProvider(network.rpc);
+  const wallet = signer.connect(provider);
+  return wallet;
+};
+
+export const getAttackerWallet = (network: any): any => {
+  const privateKey = process.env.ATTACKER_PRIVATE_KEY;
   const signer = new Wallet(privateKey!);
   const provider = getDefaultProvider(network.rpc);
   const wallet = signer.connect(provider);
