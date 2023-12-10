@@ -166,7 +166,7 @@ export async function sendMessage(source, destination, message) {
 
   const fee = await calculateBridgeFee(source, destination);
 
-  const tx = await source.contract.setRemoteValue(
+  const tx = await source.contract.bridgeAsset(
     destination.name,
     destination.contract.address,
     message,
