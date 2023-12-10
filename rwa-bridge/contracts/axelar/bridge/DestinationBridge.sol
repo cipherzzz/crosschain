@@ -81,5 +81,7 @@ contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
         _unpause();
     }
 
+    receive() external payable {}
+
     // Todo get orphaned assets mistakenly sent to this contract back to the sender
 }

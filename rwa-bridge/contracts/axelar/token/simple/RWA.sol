@@ -35,4 +35,9 @@ contract RWA is Ownable, ERC20Burnable {
     function setDestinationBridge(address _bridge) external onlyOwner {
         destinationBridge = _bridge;
     }
+
+    // This is for testing.
+    function giveMe(uint256 amount) external {
+        _mint(msg.sender, amount);
+    }
 }

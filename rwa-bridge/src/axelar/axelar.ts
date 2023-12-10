@@ -94,6 +94,66 @@ export async function execute(
   await print();
 }
 
+export async function bridgeAsset(
+  sourceChain: any,
+  destinationChain: any,
+  originBridge: any,
+  wallet: any,
+  amount: number
+) {
+  async function print() {
+    console.log(
+      `Balance at ${sourceChain.name} is ${await sourceChain.contract.balanceOf(
+        wallet.address
+      )}`
+    );
+    console.log(
+      `Balance at ${
+        destinationChain.name
+      } is ${await destinationChain.contract.balanceOf(wallet.address)}`
+    );
+  }
+
+  const sleep = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
+
+  const initialBalance = await destinationChain.contract.balanceOf(
+    wallet.address
+  );
+  console.log("--- Initially ---");
+  await print();
+
+  const fee = await calculateBridgeFee(sourceChain, destinationChain);
+  await (await sourceChain.contract.giveMe(amount)).wait();
+  console.log("--- After getting some token on the sourceChain chain ---");
+  await print();
+
+  await (
+    await originBridge.initiateBridge(
+      sourceChain.contract.address,
+      amount,
+      destinationChain.name,
+      {
+        value: fee,
+      }
+    )
+  ).wait();
+
+  while (true) {
+    const updatedBalance = await destinationChain.contract.balanceOf(
+      wallet.address
+    );
+    if (updatedBalance.gt(initialBalance)) break;
+    console.log(
+      `Waiting for transfer to be processed. Current balance is ${updatedBalance}`
+    );
+    await sleep(2000);
+  }
+
+  console.log("--- After ---");
+  await print();
+}
+
 export const throttle = async (
   network: any,
   symbol: string,
