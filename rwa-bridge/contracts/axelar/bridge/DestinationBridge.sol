@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import "@axelar-network/axelar-gmp-sdk-solidity/contracts/executable/AxelarExecutable.sol";
-import "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGateway.sol";
+import "@axelar-network/axelar-gmp-sdk-solidity/contracts/interfaces/IAxelarGasService.sol";
 
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -15,21 +15,54 @@ contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
     // Todo: add events
     // Todo: add comments
 
-    IAxelarGateway public immutable gw;
-
+    IAxelarGasService public immutable gasService;
     bytes32 public constant CHAIN_VERSION = "0.1";
     uint256 public immutable CHAIN_ID;
 
     mapping(IRWA => bool) public supportedAssets;
-    mapping(string => string) public originChainToOriginBridge;
-    mapping(string => mapping(uint256 => bool)) public isUsedNonce;
 
     constructor(
         address _gw,
+        address _gasReceiver,
         address _owner
     ) AxelarExecutable(_gw) Ownable(_owner) {
         CHAIN_ID = block.chainid;
-        gw = IAxelarGateway(_gw);
+        gasService = IAxelarGasService(_gasReceiver);
+    }
+
+    function bridgeAsset(
+        string calldata _destinationChain,
+        string calldata _destinationBridgeAddress,
+        address _assetToBurn,
+        address _assetToMint,
+        uint256 _amount
+    ) external payable {
+        require(msg.value > 0, "Gas payment is required");
+
+        bytes memory payload = abi.encode(
+            _assetToMint,
+            CHAIN_VERSION,
+            CHAIN_ID,
+            msg.sender,
+            _amount,
+            0 //nonce
+        );
+        gasService.payNativeGasForContractCall{value: msg.value}(
+            address(this),
+            _destinationChain,
+            _destinationBridgeAddress,
+            payload,
+            msg.sender
+        );
+
+        IRWA asset = IRWA(_assetToBurn);
+        asset.burnFrom(msg.sender, _amount);
+
+        gateway.callContract(
+            _destinationChain,
+            _destinationBridgeAddress,
+            payload
+        );
     }
 
     function _execute(
@@ -50,21 +83,8 @@ contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
             );
 
         IRWA asset = IRWA(_asset);
-        string memory originBridge = originChainToOriginBridge[_originChain];
-
-        isUsedNonce[originBridge][_nonce] = true;
-
         asset.mintTo(_originSender, _amount);
     }
-
-    function addOriginBridge(
-        string calldata _originChain,
-        string calldata _originBridgeAddress
-    ) external onlyOwner {
-        originChainToOriginBridge[_originChain] = _originBridgeAddress;
-    }
-
-    // Todo: removeOriginBridge?
 
     function addSupportedAsset(address _asset) external onlyOwner {
         IRWA asset = IRWA(_asset);

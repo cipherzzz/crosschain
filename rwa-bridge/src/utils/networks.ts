@@ -7,7 +7,8 @@ export const POLYGON_NETWORK = {
   create3Deployer: "0x783E7717fD4592814614aFC47ee92568a495Ce0B",
   tokens: { aUSDC: "aUSDC" },
   rpc: "http://localhost:8500/4",
-  contract: null,
+  bridge: null,
+  asset: null,
 };
 
 export const FANTOM_NETWORK = {
@@ -19,7 +20,8 @@ export const FANTOM_NETWORK = {
   create3Deployer: "0x783E7717fD4592814614aFC47ee92568a495Ce0B",
   tokens: { aUSDC: "aUSDC" },
   rpc: "http://localhost:8500/2",
-  contract: null,
+  bridge: null,
+  asset: null,
 };
 
 export const MUMBAI_NETWORK = {

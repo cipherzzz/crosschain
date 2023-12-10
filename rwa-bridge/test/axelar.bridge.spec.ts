@@ -1,10 +1,12 @@
 import { expect } from "chai";
 import { ContractFactory, ethers } from "ethers";
 import { FANTOM_NETWORK, POLYGON_NETWORK } from "../src/utils/networks";
-const RWABridge = require("../artifacts/contracts/axelar/bridge/AxelarRWABridge.sol/AxelarRWABridge.json");
+
+const RWABridge = require("../artifacts/contracts/axelar/bridge/DestinationBridge.sol/DestinationBridge.json");
+const RWA = require("../artifacts/contracts/axelar/token/simple/RWA.sol/RWA.json");
 
 import { getWallet } from "../src/utils/wallet";
-import { sendMessage } from "../src/axelar/axelar";
+import { bridgeAsset } from "../src/axelar/axelar";
 
 describe("Crosschain", function () {
   const NAME = "Real World Asset";
@@ -13,6 +15,8 @@ describe("Crosschain", function () {
   const MAX_DAILY_TRANSFER_AMOUNT = 10000000;
   let polygonWallet: any;
   let fantomWallet: any;
+  let polygonRWA: any;
+  let fantomRWA: any;
   let polygonBridge: any;
   let fantomBridge: any;
 
@@ -22,6 +26,19 @@ describe("Crosschain", function () {
     polygonWallet = getWallet(POLYGON_NETWORK);
     fantomWallet = getWallet(FANTOM_NETWORK);
 
+    //deploy RWA to Polygon
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonWallet);
+    polygonRWA = await factory.deploy(NAME, SYMBOL, polygonWallet.address);
+    await polygonRWA.deployed();
+
+    //deploy RWA to Fantom
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomWallet);
+    fantomRWA = await factory.deploy(NAME, SYMBOL, fantomWallet.address);
+    await fantomRWA.deployed();
+
+    POLYGON_NETWORK.asset = polygonRWA;
+    FANTOM_NETWORK.asset = fantomRWA;
+
     // deploy destination bridge to Polygon
     factory = new ContractFactory(
       RWABridge.abi,
@@ -30,7 +47,8 @@ describe("Crosschain", function () {
     );
     polygonBridge = await factory.deploy(
       POLYGON_NETWORK.gateway,
-      POLYGON_NETWORK.gasService
+      POLYGON_NETWORK.gasService,
+      polygonWallet.address
     );
     await polygonBridge.deployed();
 
@@ -42,12 +60,16 @@ describe("Crosschain", function () {
     );
     fantomBridge = await factory.deploy(
       FANTOM_NETWORK.gateway,
-      FANTOM_NETWORK.gasService
+      FANTOM_NETWORK.gasService,
+      fantomWallet.address
     );
     await fantomBridge.deployed();
 
-    POLYGON_NETWORK.contract = polygonBridge;
-    FANTOM_NETWORK.contract = fantomBridge;
+    POLYGON_NETWORK.bridge = polygonBridge;
+    FANTOM_NETWORK.bridge = fantomBridge;
+
+    await polygonRWA.setDestinationBridge(polygonBridge.address);
+    await fantomRWA.setDestinationBridge(fantomBridge.address);
   });
 
   describe("Deployment", function () {
@@ -64,14 +86,10 @@ describe("Crosschain", function () {
     });
   });
   describe("Send Message", function () {
-    it("Should send a message from Polygon to Fantom", async function () {
-      const message = "Hello Fantom! Love Polygon.";
-      await sendMessage(POLYGON_NETWORK, FANTOM_NETWORK, message);
-    });
-
-    it("Should send a message from Fantom to Polygon", async function () {
-      const message = "Hello Polygon! Love Fantom.";
-      await sendMessage(FANTOM_NETWORK, POLYGON_NETWORK, message);
+    it("Should bridge asset from Polygon to Fantom", async function () {
+      const amount = 1000;
+      await polygonRWA.approve(POLYGON_NETWORK.bridge.address, amount);
+      await bridgeAsset(POLYGON_NETWORK, FANTOM_NETWORK, amount, polygonWallet);
     });
   });
 });

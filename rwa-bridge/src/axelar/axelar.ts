@@ -97,42 +97,41 @@ export async function execute(
 export async function bridgeAsset(
   sourceChain: any,
   destinationChain: any,
-  originBridge: any,
-  wallet: any,
-  amount: number
+  amount: number,
+  wallet: any
 ) {
   async function print() {
     console.log(
-      `Balance at ${sourceChain.name} is ${await sourceChain.contract.balanceOf(
+      `Balance at ${sourceChain.name} is ${await sourceChain.asset.balanceOf(
         wallet.address
       )}`
     );
     console.log(
       `Balance at ${
         destinationChain.name
-      } is ${await destinationChain.contract.balanceOf(wallet.address)}`
+      } is ${await destinationChain.asset.balanceOf(wallet.address)}`
     );
   }
 
   const sleep = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
 
-  const initialBalance = await destinationChain.contract.balanceOf(
-    wallet.address
-  );
+  const initialBalance = await destinationChain.asset.balanceOf(wallet.address);
   console.log("--- Initially ---");
   await print();
 
   const fee = await calculateBridgeFee(sourceChain, destinationChain);
-  await (await sourceChain.contract.giveMe(amount)).wait();
+  await (await sourceChain.asset.giveMe(amount)).wait();
   console.log("--- After getting some token on the sourceChain chain ---");
   await print();
 
   await (
-    await originBridge.initiateBridge(
-      sourceChain.contract.address,
-      amount,
+    await sourceChain.bridge.bridgeAsset(
       destinationChain.name,
+      destinationChain.bridge.address,
+      sourceChain.asset.address,
+      destinationChain.asset.address,
+      amount,
       {
         value: fee,
       }
@@ -140,7 +139,7 @@ export async function bridgeAsset(
   ).wait();
 
   while (true) {
-    const updatedBalance = await destinationChain.contract.balanceOf(
+    const updatedBalance = await destinationChain.asset.balanceOf(
       wallet.address
     );
     if (updatedBalance.gt(initialBalance)) break;
