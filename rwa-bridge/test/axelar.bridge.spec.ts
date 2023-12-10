@@ -188,14 +188,15 @@ describe("Crosschain", function () {
   describe("Bridge Assets", function () {
     describe("ヽ(•‿•)ノ Path", function () {
       it("Should bridge asset from Polygon to Fantom", async function () {
-        await resetWallets();
         const AMOUNT = 1000;
         await polygonRWA.mint(AMOUNT);
 
-        expect(await polygonRWA.balanceOf(polygonWallet.address)).to.equal(
-          AMOUNT
+        const prevPolygonBalance = await polygonRWA.balanceOf(
+          polygonWallet.address
         );
-        expect(await fantomRWA.balanceOf(fantomWallet.address)).to.equal(0);
+        const prevFantomBalance = await fantomRWA.balanceOf(
+          fantomWallet.address
+        );
 
         await polygonRWA.approve(POLYGON_NETWORK.bridge.address, AMOUNT);
         await bridgeAsset(
@@ -206,20 +207,56 @@ describe("Crosschain", function () {
           fantomWallet.address
         );
 
-        expect(await polygonRWA.balanceOf(polygonWallet.address)).to.equal(0);
-        expect(await fantomRWA.balanceOf(fantomWallet.address)).to.equal(
-          AMOUNT
+        const newPolygonBalance = await polygonRWA.balanceOf(
+          polygonWallet.address
         );
+        const newFantomBalance = await fantomRWA.balanceOf(
+          fantomWallet.address
+        );
+
+        expect(newFantomBalance).to.equal(prevFantomBalance.add(AMOUNT));
+        expect(newPolygonBalance).to.equal(prevPolygonBalance.sub(AMOUNT));
+      });
+      it("Should bridge asset from Fantom to Polygon", async function () {
+        const AMOUNT = 1000;
+        await fantomRWA.mint(AMOUNT);
+
+        const prevPolygonBalance = await polygonRWA.balanceOf(
+          polygonWallet.address
+        );
+        const prevFantomBalance = await fantomRWA.balanceOf(
+          fantomWallet.address
+        );
+
+        await fantomRWA.approve(FANTOM_NETWORK.bridge.address, AMOUNT);
+        await bridgeAsset(
+          FANTOM_NETWORK,
+          POLYGON_NETWORK,
+          RWA_SYMBOL,
+          AMOUNT,
+          polygonWallet.address
+        );
+
+        const newPolygonBalance = await polygonRWA.balanceOf(
+          polygonWallet.address
+        );
+        const newFantomBalance = await fantomRWA.balanceOf(
+          fantomWallet.address
+        );
+
+        expect(newFantomBalance).to.equal(prevFantomBalance.sub(AMOUNT));
+        expect(newPolygonBalance).to.equal(prevPolygonBalance.add(AMOUNT));
       });
       it("Should bridge a secondary asset from Polygon to Fantom", async function () {
-        await resetWallets();
         const AMOUNT = 1000;
         await polygonRWA2.mint(AMOUNT);
 
-        expect(await polygonRWA2.balanceOf(polygonWallet.address)).to.equal(
-          AMOUNT
+        const prevPolygonBalance = await polygonRWA2.balanceOf(
+          polygonWallet.address
         );
-        expect(await fantomRWA2.balanceOf(fantomWallet.address)).to.equal(0);
+        const prevFantomBalance = await fantomRWA2.balanceOf(
+          fantomWallet.address
+        );
 
         await polygonRWA2.approve(POLYGON_NETWORK.bridge.address, AMOUNT);
         await bridgeAsset(
@@ -230,10 +267,15 @@ describe("Crosschain", function () {
           fantomWallet.address
         );
 
-        expect(await polygonRWA2.balanceOf(polygonWallet.address)).to.equal(0);
-        expect(await fantomRWA2.balanceOf(fantomWallet.address)).to.equal(
-          AMOUNT
+        const newPolygonBalance = await polygonRWA2.balanceOf(
+          polygonWallet.address
         );
+        const newFantomBalance = await fantomRWA2.balanceOf(
+          fantomWallet.address
+        );
+
+        expect(newFantomBalance).to.equal(prevFantomBalance.add(AMOUNT));
+        expect(newPolygonBalance).to.equal(prevPolygonBalance.sub(AMOUNT));
       });
 
       it("Should allow bridges to be paused/resumed", async function () {
@@ -329,43 +371,4 @@ describe("Crosschain", function () {
       });
     });
   });
-
-  const resetWallets = async () => {
-    polygonWallet = getDeployerWallet(POLYGON_NETWORK);
-    fantomWallet = getDeployerWallet(FANTOM_NETWORK);
-    polygonAttackerWallet = getAttackerWallet(POLYGON_NETWORK);
-    fantomAttackerWallet = getAttackerWallet(FANTOM_NETWORK);
-
-    // burn tokens
-    let polygonWalletAmount = await polygonRWA.balanceOf(polygonWallet.address);
-    if (polygonWalletAmount > 0) {
-      await polygonRWA.burn(polygonWalletAmount);
-    }
-
-    let fantomWalletAmount = await fantomRWA.balanceOf(fantomWallet.address);
-    if (fantomWalletAmount > 0) {
-      await fantomRWA.burn(fantomWalletAmount);
-    }
-
-    let polygonAttackerWalletAmount = await polygonRWA.balanceOf(
-      polygonAttackerWallet.address
-    );
-    if (polygonAttackerWalletAmount > 0) {
-      await polygonRWA.burn(polygonAttackerWalletAmount);
-    }
-
-    let fantomAttackerWalletAmount = await fantomRWA.balanceOf(
-      fantomAttackerWallet.address
-    );
-    if (fantomAttackerWalletAmount > 0) {
-      await fantomRWA.burn(fantomAttackerWalletAmount);
-    }
-
-    expect(await polygonRWA.balanceOf(polygonWallet.address)).to.equal(0);
-    expect(await fantomRWA.balanceOf(fantomWallet.address)).to.equal(0);
-    expect(await polygonRWA.balanceOf(polygonAttackerWallet.address)).to.equal(
-      0
-    );
-    expect(await fantomRWA.balanceOf(fantomAttackerWallet.address)).to.equal(0);
-  };
 });
