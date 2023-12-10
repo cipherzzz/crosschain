@@ -12,13 +12,14 @@ import { calculateBridgeFee } from "../../src/utils/wallet";
 export async function bridgeAsset(
   sourceChain: any,
   destinationChain: any,
+  symbol: string,
   amount: number,
   destinationAccount: any
 ) {
   const sleep = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
 
-  const initialBalance = await destinationChain.asset.balanceOf(
+  const initialBalance = await destinationChain.assets[symbol].balanceOf(
     destinationAccount
   );
 
@@ -28,8 +29,8 @@ export async function bridgeAsset(
     await sourceChain.bridge.bridgeAsset(
       destinationChain.name,
       destinationChain.bridge.address,
-      sourceChain.asset.address,
-      destinationChain.asset.address,
+      sourceChain.assets[symbol].address,
+      destinationChain.assets[symbol].address,
       amount,
       {
         value: fee,
@@ -39,7 +40,7 @@ export async function bridgeAsset(
   ).wait();
 
   while (true) {
-    const updatedBalance = await destinationChain.asset.balanceOf(
+    const updatedBalance = await destinationChain.assets[symbol].balanceOf(
       destinationAccount
     );
     if (updatedBalance.gt(initialBalance)) break;

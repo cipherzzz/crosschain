@@ -83,8 +83,8 @@ describe("Crosschain", function () {
     fantomRWA = await factory.deploy(NAME, SYMBOL, fantomWallet.address);
     await fantomRWA.deployed();
 
-    POLYGON_NETWORK.asset = polygonRWA;
-    FANTOM_NETWORK.asset = fantomRWA;
+    POLYGON_NETWORK.assets[SYMBOL] = polygonRWA;
+    FANTOM_NETWORK.assets[SYMBOL] = fantomRWA;
 
     // deploy destination bridge to Polygon
     factory = new ContractFactory(
@@ -165,6 +165,7 @@ describe("Crosschain", function () {
         await bridgeAsset(
           POLYGON_NETWORK,
           FANTOM_NETWORK,
+          SYMBOL,
           AMOUNT,
           fantomWallet.address
         );
@@ -199,6 +200,7 @@ describe("Crosschain", function () {
           bridgeAsset(
             POLYGON_NETWORK,
             FANTOM_NETWORK,
+            SYMBOL,
             AMOUNT,
             fantomWallet.address
           )
@@ -214,6 +216,7 @@ describe("Crosschain", function () {
           bridgeAsset(
             POLYGON_NETWORK,
             FANTOM_NETWORK,
+            SYMBOL,
             AMOUNT,
             fantomWallet.address
           )
