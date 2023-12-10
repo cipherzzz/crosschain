@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/interfaces/IERC20.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
-import "../token/simple/IRWA.sol";
+import "../token/IRWA.sol";
 
 contract DestinationBridge is Pausable, Ownable, AxelarExecutable {
     // Todo: add events

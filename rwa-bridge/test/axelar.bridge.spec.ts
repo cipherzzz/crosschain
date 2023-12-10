@@ -3,7 +3,7 @@ import { ContractFactory, ethers } from "ethers";
 import { FANTOM_NETWORK, POLYGON_NETWORK } from "../src/utils/networks";
 
 const RWABridge = require("../artifacts/contracts/axelar/bridge/DestinationBridge.sol/DestinationBridge.json");
-const RWA = require("../artifacts/contracts/axelar/token/simple/RWA.sol/RWA.json");
+const RWA = require("../artifacts/contracts/axelar/token/RWA.sol/RWA.json");
 
 import { getWallet } from "../src/utils/wallet";
 import { bridgeAsset } from "../src/axelar/axelar";
