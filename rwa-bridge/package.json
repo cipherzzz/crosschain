@@ -3,9 +3,6 @@
   "scripts": {
     "compile": "hardhat compile",
     "clean": "hardhat clean",
-    "test:rwa:axelar:token:complex": "hardhat test ./test/axelar.complex.spec.ts",
-    "test:rwa:axelar:token:simple": "hardhat test ./test/axelar.simple.spec.ts",
-    "test:rwa:axelar:token:copy": "hardhat test ./test/axelar.copy.spec.ts",
     "test:rwa:axelar:bridge": "hardhat test ./test/axelar.bridge.spec.ts",
     "start": "node ./axelar-examples/scripts/runStart"
   },
