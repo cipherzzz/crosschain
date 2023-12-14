@@ -9,12 +9,23 @@ const {
 
 import { calculateBridgeFee } from "../../src/utils/wallet";
 
+export type BridgeTx = {
+  destinationChain: string;
+  destinationBridgeAddress: string;
+  assetToBurn: string;
+  assetToMint: string;
+  amount: number;
+};
+
 export async function bridgeAsset(
   sourceChain: any,
   destinationChain: any,
   symbol: string,
   amount: number,
-  destinationAccount: any
+  destinationAccount: any,
+  bridgeTx: BridgeTx,
+  nonce: number,
+  signatures: string[]
 ) {
   const sleep = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
@@ -26,17 +37,10 @@ export async function bridgeAsset(
   const fee = await calculateBridgeFee(sourceChain, destinationChain);
 
   await (
-    await sourceChain.bridge.bridgeAsset(
-      destinationChain.name,
-      destinationChain.bridge.address,
-      sourceChain.assets[symbol].address,
-      destinationChain.assets[symbol].address,
-      amount,
-      {
-        value: fee,
-        gasLimit: 500000,
-      }
-    )
+    await sourceChain.bridge.bridgeAsset(bridgeTx, nonce, signatures, {
+      value: fee,
+      gasLimit: 500000,
+    })
   ).wait();
 
   while (true) {

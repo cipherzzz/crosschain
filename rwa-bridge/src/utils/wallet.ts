@@ -1,4 +1,4 @@
-import { Wallet, getDefaultProvider } from "ethers";
+import { Wallet, getDefaultProvider, utils } from "ethers";
 const {
   AxelarAssetTransfer,
   AxelarQueryAPI,
@@ -6,20 +6,58 @@ const {
   Environment,
 } = require("@axelar-network/axelarjs-sdk");
 
-export const getDeployerWallet = (network: any): any => {
-  const privateKey = process.env.DEPLOYER_PRIVATE_KEY;
-  const signer = new Wallet(privateKey!);
+export const getWalletForNetwork = (network: any, signer: any): any => {
   const provider = getDefaultProvider(network.rpc);
   const wallet = signer.connect(provider);
   return wallet;
 };
 
-export const getAttackerWallet = (network: any): any => {
-  const privateKey = process.env.ATTACKER_PRIVATE_KEY;
-  const signer = new Wallet(privateKey!);
-  const provider = getDefaultProvider(network.rpc);
-  const wallet = signer.connect(provider);
-  return wallet;
+export const getWallets = async (network: any) => {
+  const deployer = getWalletForNetwork(
+    network,
+    new Wallet(process.env.DEPLOYER_PRIVATE_KEY)
+  );
+  const attacker = getWalletForNetwork(
+    network,
+    new Wallet(process.env.ATTACKER_PRIVATE_KEY)
+  );
+  const bob = getWalletForNetwork(
+    network,
+    new Wallet(process.env.BOB_PRIVATE_KEY)
+  );
+  const alice = getWalletForNetwork(
+    network,
+    new Wallet(process.env.ALICE_PRIVATE_KEY)
+  );
+  const mark = getWalletForNetwork(
+    network,
+    new Wallet(process.env.MARK_PRIVATE_KEY)
+  );
+
+  await deployer.sendTransaction({
+    to: attacker.address,
+    value: utils.parseEther("1"),
+  });
+  await deployer.sendTransaction({
+    to: bob.address,
+    value: utils.parseEther("1"),
+  });
+  await deployer.sendTransaction({
+    to: alice.address,
+    value: utils.parseEther("1"),
+  });
+  await deployer.sendTransaction({
+    to: mark.address,
+    value: utils.parseEther("1"),
+  });
+
+  return {
+    deployer,
+    attacker,
+    bob,
+    alice,
+    mark,
+  };
 };
 
 /**

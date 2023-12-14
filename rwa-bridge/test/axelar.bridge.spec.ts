@@ -5,14 +5,32 @@ import { FANTOM_NETWORK, POLYGON_NETWORK } from "../src/utils/networks";
 const RWABridge = require("../artifacts/contracts/axelar/bridge/RWABridge.sol/RWABridge.json");
 const RWA = require("../artifacts/contracts/axelar/token/RWA.sol/RWA.json");
 
-import {
-  calculateBridgeFee,
-  getAttackerWallet,
-  getDeployerWallet,
-} from "../src/utils/wallet";
-import { bridgeAsset } from "../src/axelar/axelar";
+import { getWallets } from "../src/utils/wallet";
+import { BridgeTx, bridgeAsset } from "../src/axelar/axelar";
 
-describe("Crosschain", function () {
+const getDigest = (bridgeTx: BridgeTx, nonce: number) => {
+  let encoded = ethers.utils.defaultAbiCoder.encode(
+    ["tuple(string, string, address, address, uint256)"],
+    [
+      [
+        bridgeTx.destinationChain,
+        bridgeTx.destinationBridgeAddress,
+        bridgeTx.assetToBurn,
+        bridgeTx.assetToMint,
+        bridgeTx.amount,
+      ],
+    ]
+  );
+  let encodedWithNonce = ethers.utils.solidityPack(
+    ["bytes", "uint256"],
+    [encoded, nonce]
+  );
+
+  let digest = ethers.utils.keccak256(encodedWithNonce);
+  return digest;
+};
+
+describe("Crosschain", async function () {
   const RWA_NAME = "Real World Asset";
   const RWA_SYMBOL = "RWA";
   const RWA_NAME2 = "Real World Asset Deux";
@@ -20,10 +38,16 @@ describe("Crosschain", function () {
   const UNKNOWN = "UNKNOWN";
   const MAX_SINGLE_TRANSFER_AMOUNT = 1000;
   const MAX_DAILY_TRANSFER_AMOUNT = 1500;
-  let polygonWallet: any;
-  let fantomWallet: any;
+
+  let polygonOwnerWallet: any;
   let polygonAttackerWallet: any;
+  let polygonAliceWallet: any;
+  let polygonBobWallet: any;
+  let polygonMarkWallet: any;
+
+  let fantomOwnerWallet: any;
   let fantomAttackerWallet: any;
+
   let polygonRWA: any;
   let fantomRWA: any;
   let polygonRWA2: any;
@@ -33,65 +57,81 @@ describe("Crosschain", function () {
   let polygonBridge: any;
   let fantomBridge: any;
 
+  let multiSigSigners: any;
+  let multiSigSignerAddresses: any = [];
+
   before(async function () {
     let factory: any;
 
-    polygonWallet = getDeployerWallet(POLYGON_NETWORK);
-    fantomWallet = getDeployerWallet(FANTOM_NETWORK);
-    polygonAttackerWallet = getDeployerWallet(POLYGON_NETWORK);
-    fantomAttackerWallet = getDeployerWallet(FANTOM_NETWORK);
+    const polygonWallets = await getWallets(POLYGON_NETWORK);
+    polygonOwnerWallet = polygonWallets.deployer;
+    polygonAttackerWallet = polygonWallets.attacker;
+    polygonAliceWallet = polygonWallets.alice;
+    polygonBobWallet = polygonWallets.bob;
+    polygonMarkWallet = polygonWallets.mark;
+
+    const fantomWallets = await getWallets(FANTOM_NETWORK);
+    fantomOwnerWallet = fantomWallets.deployer;
+    fantomAttackerWallet = fantomWallets.attacker;
+
+    multiSigSigners = [polygonBobWallet, polygonAliceWallet].sort((a, b) =>
+      a.address > b.address ? 1 : -1
+    );
+    for (let signer of multiSigSigners) {
+      multiSigSignerAddresses.push(signer.address);
+    }
 
     //deploy RWA to Polygon
-    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonWallet);
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonOwnerWallet);
     polygonRWA = await factory.deploy(
       RWA_NAME,
       RWA_SYMBOL,
-      polygonWallet.address
+      polygonOwnerWallet.address
     );
     await polygonRWA.deployed();
 
     //deploy RWA to Fantom
-    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomWallet);
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomOwnerWallet);
     fantomRWA = await factory.deploy(
       RWA_NAME,
       RWA_SYMBOL,
-      fantomWallet.address
+      fantomOwnerWallet.address
     );
     await fantomRWA.deployed();
 
     // deploy RWA2 to Polygon
-    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonWallet);
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonOwnerWallet);
     polygonRWA2 = await factory.deploy(
       RWA_NAME2,
       RWA_SYMBOL2,
-      polygonWallet.address
+      polygonOwnerWallet.address
     );
     await polygonRWA2.deployed();
 
     //deploy RWA2 to Fantom
-    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomWallet);
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomOwnerWallet);
     fantomRWA2 = await factory.deploy(
       RWA_NAME2,
       RWA_SYMBOL2,
-      fantomWallet.address
+      fantomOwnerWallet.address
     );
     await fantomRWA2.deployed();
 
     // deploy Unknown to Polygon
-    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonWallet);
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, polygonOwnerWallet);
     polygonUnknown = await factory.deploy(
       UNKNOWN,
       UNKNOWN,
-      polygonWallet.address
+      polygonOwnerWallet.address
     );
     await polygonUnknown.deployed();
 
     // deploy Unknown to Fantom
-    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomWallet);
+    factory = new ContractFactory(RWA.abi, RWA.bytecode, fantomOwnerWallet);
     fantomUnknown = await factory.deploy(
       UNKNOWN,
       UNKNOWN,
-      fantomWallet.address
+      fantomOwnerWallet.address
     );
     await fantomUnknown.deployed();
 
@@ -106,12 +146,14 @@ describe("Crosschain", function () {
     factory = new ContractFactory(
       RWABridge.abi,
       RWABridge.bytecode,
-      polygonWallet
+      polygonOwnerWallet
     );
     polygonBridge = await factory.deploy(
       POLYGON_NETWORK.gateway,
       POLYGON_NETWORK.gasService,
-      polygonWallet.address
+      polygonOwnerWallet.address,
+      multiSigSignerAddresses,
+      2
     );
     await polygonBridge.deployed();
 
@@ -119,12 +161,14 @@ describe("Crosschain", function () {
     factory = new ContractFactory(
       RWABridge.abi,
       RWABridge.bytecode,
-      fantomWallet
+      fantomOwnerWallet
     );
     fantomBridge = await factory.deploy(
       FANTOM_NETWORK.gateway,
       FANTOM_NETWORK.gasService,
-      fantomWallet.address
+      fantomOwnerWallet.address,
+      multiSigSignerAddresses,
+      2
     );
     await fantomBridge.deployed();
 
@@ -187,15 +231,35 @@ describe("Crosschain", function () {
   });
   describe("Bridge Assets", function () {
     describe("ヽ(•‿•)ノ Path", function () {
-      it("Should bridge asset from Polygon to Fantom", async function () {
+      it.only("Should bridge asset from Polygon to Fantom", async function () {
         const AMOUNT = 1000;
+        const nonce = (await polygonBridge.nonce()) + 1;
+
+        const bridgeTx: BridgeTx = {
+          destinationChain: POLYGON_NETWORK.name,
+          destinationBridgeAddress: FANTOM_NETWORK.bridge.address,
+          assetToBurn: polygonRWA.address,
+          assetToMint: fantomRWA.address,
+          amount: AMOUNT,
+        };
+
+        console.log(bridgeTx);
+
+        const digest = getDigest(bridgeTx, nonce);
+        multiSigSigners.sort((x, y) => (x.address > y.address ? 1 : -1));
+        let signatures = [];
+        for (let signer of multiSigSigners) {
+          let sign = await signer.signMessage(ethers.utils.arrayify(digest));
+          signatures.push(sign);
+        }
+
         await polygonRWA.mint(AMOUNT);
 
         const prevPolygonBalance = await polygonRWA.balanceOf(
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
         const prevFantomBalance = await fantomRWA.balanceOf(
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         await polygonRWA.approve(POLYGON_NETWORK.bridge.address, AMOUNT);
@@ -204,28 +268,31 @@ describe("Crosschain", function () {
           FANTOM_NETWORK,
           RWA_SYMBOL,
           AMOUNT,
-          fantomWallet.address
+          fantomOwnerWallet.address,
+          bridgeTx,
+          nonce,
+          signatures
         );
 
         const newPolygonBalance = await polygonRWA.balanceOf(
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
         const newFantomBalance = await fantomRWA.balanceOf(
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         expect(newFantomBalance).to.equal(prevFantomBalance.add(AMOUNT));
         expect(newPolygonBalance).to.equal(prevPolygonBalance.sub(AMOUNT));
-      });
+      }).timeout(100000);
       it("Should bridge asset from Fantom to Polygon", async function () {
         const AMOUNT = 1000;
         await fantomRWA.mint(AMOUNT);
 
         const prevPolygonBalance = await polygonRWA.balanceOf(
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
         const prevFantomBalance = await fantomRWA.balanceOf(
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         await fantomRWA.approve(FANTOM_NETWORK.bridge.address, AMOUNT);
@@ -234,14 +301,14 @@ describe("Crosschain", function () {
           POLYGON_NETWORK,
           RWA_SYMBOL,
           AMOUNT,
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
 
         const newPolygonBalance = await polygonRWA.balanceOf(
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
         const newFantomBalance = await fantomRWA.balanceOf(
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         expect(newFantomBalance).to.equal(prevFantomBalance.sub(AMOUNT));
@@ -252,10 +319,10 @@ describe("Crosschain", function () {
         await polygonRWA2.mint(AMOUNT);
 
         const prevPolygonBalance = await polygonRWA2.balanceOf(
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
         const prevFantomBalance = await fantomRWA2.balanceOf(
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         await polygonRWA2.approve(POLYGON_NETWORK.bridge.address, AMOUNT);
@@ -264,14 +331,14 @@ describe("Crosschain", function () {
           FANTOM_NETWORK,
           RWA_SYMBOL2,
           AMOUNT,
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         const newPolygonBalance = await polygonRWA2.balanceOf(
-          polygonWallet.address
+          polygonOwnerWallet.address
         );
         const newFantomBalance = await fantomRWA2.balanceOf(
-          fantomWallet.address
+          fantomOwnerWallet.address
         );
 
         expect(newFantomBalance).to.equal(prevFantomBalance.add(AMOUNT));
@@ -302,7 +369,7 @@ describe("Crosschain", function () {
             FANTOM_NETWORK,
             RWA_SYMBOL,
             AMOUNT,
-            fantomWallet.address
+            fantomOwnerWallet.address
           )
         ).to.be.rejected;
       });
@@ -319,7 +386,7 @@ describe("Crosschain", function () {
             FANTOM_NETWORK,
             RWA_SYMBOL,
             AMOUNT,
-            fantomWallet.address
+            fantomOwnerWallet.address
           )
         ).to.be.rejected;
       });
@@ -332,7 +399,7 @@ describe("Crosschain", function () {
             FANTOM_NETWORK,
             UNKNOWN,
             AMOUNT,
-            fantomWallet.address
+            fantomOwnerWallet.address
           )
         ).to.be.rejected;
       });
@@ -349,14 +416,14 @@ describe("Crosschain", function () {
             FANTOM_NETWORK,
             RWA_SYMBOL,
             AMOUNT,
-            fantomWallet.address
+            fantomOwnerWallet.address
           )
         ).to.be.rejected;
       });
 
       it("Should not bridge asset from Polygon to Fantom if bridge is paused", async function () {
         const AMOUNT = 1000;
-        polygonBridge.connect(polygonWallet);
+        polygonBridge.connect(polygonOwnerWallet);
         polygonBridge.pause();
 
         await expect(
@@ -365,7 +432,7 @@ describe("Crosschain", function () {
             FANTOM_NETWORK,
             RWA_SYMBOL,
             AMOUNT,
-            fantomWallet.address
+            fantomOwnerWallet.address
           )
         ).to.be.rejected;
       });
